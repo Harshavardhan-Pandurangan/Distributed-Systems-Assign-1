@@ -60,6 +60,18 @@ int main(int argc, char **argv)
     MPI_Bcast(&start, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&B, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
+    // iterate through the adjacency list and remove all incoming and outgoing edges to blocked vertices
+    if (world_rank == 0)
+    {
+        for (int i = 0; i < B; i++)
+        {
+            for (int j = 0; j < V; j++)
+            {
+                adj[j].erase(std::remove(adj[j].begin(), adj[j].end(), blocked[i]), adj[j].end());
+            }
+        }
+    }
+
     std::vector<int> my_vertices;
     std::vector<std::vector<int>> my_adj(V);
 
@@ -116,65 +128,97 @@ int main(int argc, char **argv)
     }
 
     std::vector<int> dist(V, std::numeric_limits<int>::max());
-    std::vector<int> visited(K, 0);
+    std::vector<int> visited(V, 0);
+
+    // if the start is in blocked vertices, then exit the program with distance -1
+    if (std::find(blocked.begin(), blocked.end(), start) != blocked.end())
+    {
+        if (world_rank == 0)
+        {
+            // set all values to -1
+            dist.assign(V, -1);
+            for (int i = 0; i < K; i++)
+            {
+                std::cout << dist[exits[i]] << " ";
+            }
+            std::cout << std::endl;
+        }
+        MPI_Finalize();
+        return 0;
+    }
 
     // Distributed 1D Parallel BFS
-    std::vector<int> frontier;
-    for (int i = 0; i < K; i++)
+    int level = 0;
+    std::vector<int> curr_queue(V, 0), next_queue(V, 0);
+    if (start % world_size == world_rank)
     {
-        if (exits[i] % world_size == world_rank)
-        {
-            dist[exits[i]] = 0;
-            frontier.push_back(exits[i]);
-        }
+        dist[start] = 0;
+        curr_queue[start] = 1;
+        visited[start] = 1;
     }
 
-    for (int i = 0; i < B; i++)
+    while (true)
     {
-        if (blocked[i] % world_size == world_rank)
+        // process the current queue
+        for (int i = 0; i < V; i++)
         {
-            dist[blocked[i]] = -1;
-        }
-    }
-
-    while (!frontier.empty())
-    {
-        std::vector<int> new_frontier;
-        for (int u : frontier)
-        {
-            for (int v : my_adj[u])
+            if (curr_queue[i] == 0 || i % world_size != world_rank)
             {
-                if (dist[v] == std::numeric_limits<int>::max())
+                continue;
+            }
+
+            for (int j = 0; j < my_adj[i].size(); j++)
+            {
+                int v = my_adj[i][j];
+                if (visited[v] == 0)
                 {
-                    dist[v] = dist[u] + 1;
-                    new_frontier.push_back(v);
+                    dist[v] = level + 1;
+                    next_queue[v] = 1;
+                    visited[v] = 1;
                 }
             }
         }
-        frontier = new_frontier;
-    }
 
-    // Gather the results
-    std::vector<int> global_dist(V);
-    MPI_Gather(dist.data(), V / world_size, MPI_INT, global_dist.data(), V / world_size, MPI_INT, 0, MPI_COMM_WORLD);
+        // sync everyone's visited array, dist array and next queue array
+        MPI_Allreduce(MPI_IN_PLACE, visited.data(), V, MPI_INT, MPI_LOR, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, dist.data(), V, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, next_queue.data(), V, MPI_INT, MPI_LOR, MPI_COMM_WORLD);
 
-    if (world_rank == 0)
-    {
+        // check if the next queue is empty
+        int sum = 0;
         for (int i = 0; i < V; i++)
         {
-            if (global_dist[i] != std::numeric_limits<int>::max())
-            {
-                std::cout << i << " " << global_dist[i] << std::endl;
-            }
-            else
-            {
-                std::cout << i << " " << "INF" << std::endl;
-            }
+            sum += next_queue[i];
         }
+        if (sum == 0)
+        {
+            break;
+        }
+
+        // swap the current queue with the next queue
+        curr_queue.swap(next_queue);
+        next_queue.assign(V, 0);
+
+        // increment the level
+        level++;
     }
 
     // Finalize the MPI environment
     MPI_Finalize();
+
+    // print the distance array for the exit vertices
+    if (world_rank == 0)
+    {
+        for (int i = 0; i < K; i++)
+        {
+            if (dist[exits[i]] == std::numeric_limits<int>::max())
+            {
+                dist[exits[i]] = -1;
+            }
+            std::cout << dist[exits[i]] << " ";
+        }
+        std::cout << std::endl;
+    }
 
     return 0;
 }
