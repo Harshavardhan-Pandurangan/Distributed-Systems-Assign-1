@@ -283,26 +283,6 @@ void retrieve_file_master(int world_size, std::string file_data)
         }
     }
 
-    // // make a single string from the chunks
-    // std::string file_contents;
-
-    // std::vector<bool> chunk_recieved(metadata.chunk_count, false);
-    // for (int i = 0; i < metadata.chunk_count; i++)
-    // {
-    //     for (int j = 0; j < chunks.size(); j++)
-    //     {
-    //         for (int k = 0; k < chunks[j].size(); k++)
-    //         {
-    //             if (chunks[j][k].chunk_id == i)
-    //             {
-    //                 file_contents += std::string(chunks[j][k].data);
-    //                 chunk_recieved[i] = true;
-    //                 break;
-    //             }
-    //         }
-    //     }
-    // }
-
     std::vector<Chunk> chunks_to_print;
     std::vector<int> chunk_recieved(metadata.chunk_count, 0);
     for (int i = 0; i < metadata.chunk_count; i++)
@@ -343,14 +323,11 @@ void retrieve_file_master(int world_size, std::string file_data)
     {
         if (chunks_to_print[chunks_to_print.size() - 1].data[j] == '\0')
         {
+            std::cout << '\0' << 'a' << std::endl;
             break;
         }
         std::cout << chunks_to_print[chunks_to_print.size() - 1].data[j];
     }
-    std::cout << std::endl;
-
-    // // print the file contents
-    // std::cout << file_contents << std::endl;
 }
 
 void retrieve_file_node(std::vector<Chunk> &chunks, int world_rank)

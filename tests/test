@@ -1,0 +1,17 @@
+upload a.txt ../tests/a.txt
+retrieve a.txt
+
+upload a.txt ../tests/a.txt
+list_file a.txt
+failover 1
+failover 2
+retrieve a.txt
+search a.txt abcd
+exit
+
+upload a.txt ../tests/a.txt
+failover 1
+list_file a.txt
+recover 1
+list_file a.txt
+exit

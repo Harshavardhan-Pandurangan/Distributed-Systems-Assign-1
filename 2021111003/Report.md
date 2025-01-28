@@ -29,7 +29,7 @@
 * **Dominant Term:** O(V) due to the blocked nodes array.
 
 **Performance Scaling:**
-* [Image of performance scaling graph for Question 1]
+![Performance Scaling Graph for Question 1](./q1.jpeg)
 
 ### **Question 2: Ballistic Simulation**
 
@@ -56,7 +56,8 @@
     * Ball Data: O(K) for storing information about the balls.
 
 **Performance Scaling:**
-* [Image of performance scaling graph for Question 2]
+![Performance Scaling Graph for Question 1](./q2.jpeg)
+
 
 ### **Question 3: Distributed File System**
 
